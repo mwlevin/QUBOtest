@@ -38,6 +38,8 @@ public class Network
     
     public Network(int T, int num_scenarios)
     {
+        Scenario.next_idx = 0;
+        
         this.T = T;
         this.num_scenarios = num_scenarios;
         
@@ -61,6 +63,7 @@ public class Network
         links = new ArrayList<>();
         scenarios = new ArrayList<>();
         
+        Scenario.next_idx = 0;
         
         
         Scanner filein = new Scanner(new File(name+".txt"));
@@ -155,7 +158,7 @@ public class Network
         
         fileout.close();
         
-        System.out.println(count);
+        //System.out.println(count);
     }
     
     public void dijkstras(int k, Node source)
@@ -229,7 +232,34 @@ public class Network
         return output;
     }
     
-    public void solve(int origin, int dest) throws IloException
+    private List<Node> path;
+    private double objValue;
+    private long cplextime;
+    
+    public double getCplexTime()
+    {
+        return cplextime/1.0e9;
+    }
+    
+    public List<Node> getPath()
+    {
+        return path;
+    }
+    
+    public double getObj()
+    {
+        return objValue;
+    }
+    
+    protected int origin = 0;
+    protected int dest = 0;
+    
+    public void solve() throws IloException
+    {
+        solve(origin, dest);
+    }
+    
+    public boolean solve(int origin, int dest) throws IloException
     {
         IloCplex cplex = new IloCplex();
         
@@ -270,19 +300,37 @@ public class Network
         
         Node dn = findNode(dest);
         
+
         for(Scenario s : scenarios)
         {
             IloLinearNumExpr lhs = cplex.linearNumExpr();
             
             for(int t = 0; t < T; t++)
             {
+                
                 for(Link l : dn.getIncoming())
                 {
+                    
                     lhs.addTerm(l.getX(s, t), 1);
                 }
             }
             
             cplex.addEq(lhs, 1);
+        }
+        
+        for(Scenario k : scenarios)
+        {
+            for(Link ij : links)
+            {
+                IloLinearNumExpr lhs = cplex.linearNumExpr();
+                
+                for(int t = 0; t < T; t++)
+                {
+                    lhs.addTerm(1, ij.getX(k, t));
+                }
+                
+                cplex.addLe(lhs, 1);
+            }
         }
         
         for(Scenario k : scenarios)
@@ -310,6 +358,7 @@ public class Network
             }
         }
         
+        /*
         for(Scenario s : scenarios)
         {
             for(Link ij : links)
@@ -328,16 +377,108 @@ public class Network
                         rhs.addTerm(jk.getX(s, t + ij.getW(s, t)), 1);
                     }
                     
-                    cplex.addEq(ij.getX(s, t), rhs);
+                    //cplex.addEq(ij.getX(s, t), rhs);
+                }
+            }
+        }
+        */
+        
+        for(Scenario s : scenarios)
+        {
+            for(Node j : nodes)
+            {
+                if(j== on || j == dn)
+                {
+                    continue;
+                }
+                
+                for(int t = 0; t < T; t++)
+                {
+                    // rhs: links outgoing from i at time t
+                    // lhs: links incoming from i arriving at time t
+
+                    IloLinearNumExpr rhs = cplex.linearNumExpr();
+                    IloLinearNumExpr lhs = cplex.linearNumExpr();
+
+                    for(Link jk : j.getOutgoing())
+                    {
+                        rhs.addTerm(1, jk.getX(s, t));
+                    }
+                    
+                  
+                    
+                    for(Link ij : j.getIncoming())
+                    {
+                        for(int tp = 0; tp < t; tp++)
+                        {
+                            if(tp + ij.getW(s, tp) == t)
+                            {
+                                
+                                lhs.addTerm(1, ij.getX(s, tp));
+                            }
+                        }
+                    }
+                    
+                    cplex.addEq(lhs, rhs);
                 }
             }
         }
         
+        long time = System.nanoTime();
+        boolean output = cplex.solve();
+        
+        cplextime = System.nanoTime() - time;
+        
+        if(output)
+        {
+            objValue = cplex.getObjValue();
+        
+            path = new ArrayList<>();
+
+            Node curr = on;
+            path.add(curr);
+
+            int arr_time = 0;
+            Scenario s1 = scenarios.get(0);
+
+            Node old_curr = null;
+            
+            while(curr != dn)
+            {
+                old_curr = curr;
+                
+                outer: for(Link ij : curr.getOutgoing())
+                {
+                    if(cplex.getValue(ij.getX(s1, arr_time)) > 0.5)
+                    {
+                        curr = ij.getDest();
+                        arr_time += ij.getW(s1, arr_time);
+                        break outer;
+                    }
+                }
+
+                if(old_curr == curr)
+                {
+                    printSolution(cplex);
+                    System.exit(0);
+                }
+                path.add(curr);
+            }
+
+            //System.out.println(path);
+
+        }
+        
+        //printSolution(cplex);
         
         
-        cplex.solve();
         
-        printSolution(cplex);
+        cplex.end();
+        
+        
+        
+        
+        return output;
     }
     
     public void printSolution(IloCplex cplex) throws IloException
@@ -352,7 +493,10 @@ public class Network
                 
                 for(int t = 0; t < T; t++)
                 {
-                    System.out.println("\t\t"+t+": "+(cplex.getValue(ij.getX(s, t)) == 1? "1\t"+ij.getW(s, t):""));
+                    if(cplex.getValue(ij.getX(s, t)) == 1)
+                    {
+                        System.out.println("\t\t"+t+": "+(cplex.getValue(ij.getX(s, t)) == 1? "1\t"+ij.getW(s, t):""));
+                    }
                 }
             }
         }

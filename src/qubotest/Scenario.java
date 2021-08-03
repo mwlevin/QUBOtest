@@ -14,7 +14,7 @@ public class Scenario
     private int id;
     
     private int idx;
-    private static int next_idx = 0;
+    public static int next_idx = 0;
     
     public Scenario(int id)
     {

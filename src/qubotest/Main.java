@@ -23,25 +23,30 @@ public class Main {
         
         PrintStream fileout = new PrintStream(new FileOutputStream(new File("grid/solutions.txt")), true);
         
+        fileout.println("size\tK\tT\tinstance\tObj value\tCPLEX time (s)\tOptimal path");
         
-        int repeat = 2;
+        int repeat = 10;
         boolean acyclic = true;
         
-        for(int n = 3; n <= 3; n++)
+        for(int n = 3; n <= 7; n++)
         {
-            for(int K = 2; K <= 2; K+=1)
+            for(int K = 2; K <= 6; K+=2)
             {
-                for(int T = 30; T <= 30; T+= 30)
+                for(int T = 30; T <= 90; T+= 30)
                 {
                     for(int x = 0; x < repeat; x++)
                     {
                         GridNetwork test;
 
+                        //System.out.print("Looping for connectivity...");
+                        
                         do
                         {
                             test = new GridNetwork(true, n, n, T, K);
                         }
                         while(!test.isConnected());
+                        
+                        //System.out.println("done.");
 
                         //System.out.println(test.isConnected());
 
@@ -50,6 +55,15 @@ public class Main {
                         "grid/"+(acyclic? "A":"N")+n+"x"+n+"_T="+T+"_K="+K+"-"+x+".txt"
                         ));
                         
+                        test.solve();
+                        
+                        fileout.print(n+"\t"+K+"\t"+T+"\t"+x+"\t"+test.getObj()+"\t"+test.getCplexTime()+"\t");
+                        
+                        for(Node optn : test.getPath())
+                        {
+                            fileout.print(optn+" ");
+                        }
+                        fileout.println();
                         
                     }
 

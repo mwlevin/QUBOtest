@@ -38,10 +38,13 @@ public class GridNetwork extends Network
             }
         }
         
+        origin = 1;
+        dest = Node.next_id-1;
+        
         int n = (rows + cols)/2;
         int b = T/(n-1)-1;
         //b = 1;
-        System.out.println(n+" "+b);
+        //System.out.println(n+" "+b);
         
         for(int r = 0; r < rows; r++)
         {

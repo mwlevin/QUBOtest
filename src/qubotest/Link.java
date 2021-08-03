@@ -45,6 +45,7 @@ public class Link implements Comparable<Link>
         end.addIncoming(this);
         
         costs = new int[network.num_scenarios][network.T];
+        x = new IloIntVar[network.num_scenarios][network.T];
         
         // randomly generate tts
         for(int k = 0; k < costs.length; k++)
@@ -62,6 +63,7 @@ public class Link implements Comparable<Link>
                 
                 
                 int w = min + (int)Math.round(Math.random() * (max-min));
+                //int w = 1;
                 
                 if(w + t < network.T)
                 {
